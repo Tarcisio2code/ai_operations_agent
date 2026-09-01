@@ -1,0 +1,13 @@
+[project]
+name = "ai-operations-agent"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi[standard]>=0.141.1",
+    "google-genai>=2.21.0",
+    "psycopg[binary]>=3.3.5",
+    "pydantic-settings>=2.15.0",
+    "sqlalchemy>=2.0.52",
+]
+[tool.fastapi]
+entrypoint = "app.main:app"
