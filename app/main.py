@@ -2,7 +2,11 @@ from fastapi import FastAPI
 
 from app.schemas import TicketCreate, TicketResponse
 from app.schemas import TicketClassification
+
 from app.services.llm import classify_ticket
+
+from app.db.database import SessionLocal
+from app.db.models import Ticket
 
 app = FastAPI(
 	title="AI Operation Agent",
@@ -20,10 +24,19 @@ async def health_check():
     status_code=201,
 )
 async def create_ticket(ticket: TicketCreate):
-    return TicketResponse(
-        id=1,
+    db_ticket = Ticket(
         message=ticket.message,
-        status="new",
+    )
+
+    with SessionLocal() as session:
+        session.add(db_ticket)
+        session.commit()
+        session.refresh(db_ticket)
+
+    return TicketResponse(
+        id=db_ticket.id,
+        message=db_ticket.message,
+        status=db_ticket.status,
     )
 
 @app.post(
