@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 
 from app.schemas import TicketCreate, TicketResponse
+from app.schemas import TicketClassification
+from app.services.llm import classify_ticket
 
 app = FastAPI(
 	title="AI Operation Agent",
@@ -17,10 +19,16 @@ async def health_check():
     response_model=TicketResponse,
     status_code=201,
 )
-
 async def create_ticket(ticket: TicketCreate):
     return TicketResponse(
         id=1,
         message=ticket.message,
         status="new",
     )
+
+@app.post(
+    "/tickets/classify",
+    response_model=TicketClassification,
+)
+async def classify_ticket_endpoint(ticket: TicketCreate):
+    return classify_ticket(ticket.message)
