@@ -23,9 +23,16 @@ async def health_check():
     response_model=TicketResponse,
     status_code=201,
 )
-async def create_ticket(ticket: TicketCreate):
+def create_ticket(ticket: TicketCreate):
+    classification = classify_ticket(ticket.message)
+
     db_ticket = Ticket(
         message=ticket.message,
+        status="classified",
+        category=classification.category.value,
+        priority=classification.priority.value,
+        customer_id=classification.customer_id,
+        summary=classification.summary,
     )
 
     with SessionLocal() as session:
@@ -37,6 +44,10 @@ async def create_ticket(ticket: TicketCreate):
         id=db_ticket.id,
         message=db_ticket.message,
         status=db_ticket.status,
+        category=db_ticket.category,
+        priority=db_ticket.priority,
+        customer_id=db_ticket.customer_id,
+        summary=db_ticket.summary,
     )
 
 @app.post(
