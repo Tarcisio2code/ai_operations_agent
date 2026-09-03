@@ -1,5 +1,5 @@
 from app.db.database import Base, engine
-from app.db.models import Ticket
+from app.db.models import Customer, Ticket, Transaction
 
 
 def init_db() -> None:

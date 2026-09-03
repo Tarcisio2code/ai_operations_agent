@@ -21,10 +21,20 @@ db_init:
 	@$(PACKAGE_MANAGER) python -m app.db.init_db
 
 db_audit:
-	@$(DOCKER_EXEC) $(CONTAINER_NAME) psql -U $(DATABASE_USER) -d $(DATABASE_NAME) -c "\d+ tickets"
+	@for table in $$(docker exec $(CONTAINER_NAME) psql -U $(DATABASE_USER) -d $(DATABASE_NAME) -t -A -c "SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE'"); do \
+		docker exec $(CONTAINER_NAME) psql -U $(DATABASE_USER) -d $(DATABASE_NAME) -c "\d \"$$table\";"; \
+	done
 
 db_show:
-	@$(DOCKER_EXEC) $(CONTAINER_NAME) psql -U $(DATABASE_USER) -d $(DATABASE_NAME) -x -c "SELECT * from tickets;"
+	@for table in $$(docker exec $(CONTAINER_NAME) psql -U $(DATABASE_USER) -d $(DATABASE_NAME) -t -A -c "SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE'"); do \
+		echo ""; \
+		echo "===< $$table >==="; \
+		if [ "$$table" = "tickets" ]; then \
+			docker exec $(CONTAINER_NAME) psql -U $(DATABASE_USER) -d $(DATABASE_NAME) -x -c "SELECT * FROM \"$$table\";"; \
+		else \
+			docker exec $(CONTAINER_NAME) psql -U $(DATABASE_USER) -d $(DATABASE_NAME) -c "SELECT * FROM \"$$table\";"; \
+		fi; \
+	done
 
 volume:
 	docker volume ls
