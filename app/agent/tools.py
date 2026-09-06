@@ -30,7 +30,37 @@ GET_TRANSACTIONS_TOOL = {
     },
 }
 
+PROPOSE_ESCALATION_TOOL = {
+    "type": "function",
+    "name": "propose_escalation",
+    "description": (
+        "Propose that a support ticket be escalated for human review. "
+        "This creates a pending action and does not execute the escalation."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "ticket_id": {
+                "type": "integer",
+                "description": "The ID of the support ticket.",
+            },
+            "reason": {
+                "type": "string",
+                "description": (
+                    "A concise explanation of why the ticket "
+                    "should be escalated."
+                ),
+            },
+        },
+        "required": [
+            "ticket_id",
+            "reason",
+        ],
+    },
+}
+
 AGENT_TOOLS = [
     GET_CUSTOMER_TOOL,
     GET_TRANSACTIONS_TOOL,
+    PROPOSE_ESCALATION_TOOL,
 ]

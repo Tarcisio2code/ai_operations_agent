@@ -40,3 +40,26 @@ class TicketResponse(BaseModel):
     priority: TicketPriority | None = None
     customer_id: int | None = None
     summary: str | None = None
+
+class AgentRequest(BaseModel):
+    message: str = Field(
+        min_length=3,
+        max_length=2000,
+    )
+
+class AgentResponse(BaseModel):
+    response: str
+
+class ActionProposalCreate(BaseModel):
+    ticket_id: int
+    reason: str = Field(
+        min_length=5,
+        max_length=1000,
+    )
+
+class ActionProposalResponse(BaseModel):
+    id: int
+    ticket_id: int
+    action_type: str
+    reason: str | None = None
+    status: str
