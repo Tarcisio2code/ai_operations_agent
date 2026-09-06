@@ -11,6 +11,9 @@ all: dev
 dev:
 	@$(PACKAGE_MANAGER) fastapi dev
 
+tests:
+	@$(PACKAGE_MANAGER) pytest -v
+
 up:
 	@$(DOCKER_COMPOSE) up -d
 
@@ -48,4 +51,4 @@ down:
 reset:
 	@$(DOCKER_COMPOSE) down -v
 
-.PHONY: all dev up ps db_init db_audit db_show image volume down reset
+.PHONY: all dev tests up ps db_init db_audit db_show image volume down reset
