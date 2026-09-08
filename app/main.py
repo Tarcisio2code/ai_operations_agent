@@ -144,6 +144,7 @@ def approve_action_endpoint(action_id: int):
         id=action["id"],
         ticket_id=action["ticket_id"],
         action_type=action["action_type"],
+        reason=action["reason"],
         status=action["status"],
     )
 
