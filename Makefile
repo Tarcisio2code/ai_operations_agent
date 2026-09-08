@@ -39,6 +39,15 @@ db_show:
 		fi; \
 	done
 
+migration:
+	@uv run alembic revision --autogenerate -m "$(m)"
+
+migrate:
+	@uv run alembic upgrade head
+
+migration_info:
+	@uv run alembic current
+
 volume:
 	docker volume ls
 
