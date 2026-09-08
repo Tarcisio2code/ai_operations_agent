@@ -6,6 +6,9 @@ PACKAGE_MANAGER = uv run
 DOCKER_COMPOSE = docker compose
 DOCKER_EXEC = docker exec
 
+.PHONY: all dev tests up ps db_migrate db_rev db_info db_check db_seed \
+	db_audit db_show volume image down reset
+
 all: dev
 
 dev:
@@ -20,8 +23,20 @@ up:
 ps:
 	@$(DOCKER_COMPOSE) ps
 
-db_init:
-	@$(PACKAGE_MANAGER) python -m app.db.init_db
+db_migrate:
+	@$(PACKAGE_MANAGER) alembic upgrade head
+
+db_rev:
+	@$(PACKAGE_MANAGER) alembic revision --autogenerate -m "$(m)"
+
+db_info:
+	@$(PACKAGE_MANAGER) alembic current
+
+db_check:
+	@$(PACKAGE_MANAGER) alembic check
+
+db_seed:
+	@$(PACKAGE_MANAGER) python -m app.db.seed
 
 db_audit:
 	@for table in $$(docker exec $(CONTAINER_NAME) psql -U $(DATABASE_USER) -d $(DATABASE_NAME) -t -A -c "SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE'"); do \
@@ -38,15 +53,6 @@ db_show:
 			docker exec $(CONTAINER_NAME) psql -U $(DATABASE_USER) -d $(DATABASE_NAME) -c "SELECT * FROM \"$$table\";"; \
 		fi; \
 	done
-
-migration:
-	@uv run alembic revision --autogenerate -m "$(m)"
-
-migrate:
-	@uv run alembic upgrade head
-
-migration_info:
-	@uv run alembic current
 
 volume:
 	docker volume ls
