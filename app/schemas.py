@@ -85,6 +85,7 @@ class ActionDetailResponse(BaseModel):
 
 class AgentToolCallResponse(BaseModel):
     id: int
+    agent_run_id: int | None = None
     ticket_id: int | None = None
     tool_name: str
     arguments: dict

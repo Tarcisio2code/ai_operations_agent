@@ -274,6 +274,7 @@ def test_get_ticket_tool_calls_endpoint(monkeypatch):
         lambda ticket_id: [
             SimpleNamespace(
                 id=20,
+                agent_run_id=30,
                 ticket_id=ticket_id,
                 tool_name="propose_escalation",
                 arguments={
@@ -296,6 +297,7 @@ def test_get_ticket_tool_calls_endpoint(monkeypatch):
     assert response.json() == [
         {
             "id": 20,
+            "agent_run_id": 30,
             "ticket_id": 2,
             "tool_name": "propose_escalation",
             "arguments": {
@@ -342,3 +344,164 @@ def test_get_agent_runs_endpoint(monkeypatch):
             "status": "completed",
         }
     ]
+
+#
+# Verifies that a single agent run can be retrieved through the API.
+def test_get_agent_run_endpoint(monkeypatch):
+    monkeypatch.setattr(
+        main,
+        "get_agent_run",
+        lambda run_id: SimpleNamespace(
+            id=run_id,
+            ticket_id=2,
+            user_message="Investigate ticket 2.",
+            final_response=(
+                "Escalation proposed and awaiting approval."
+            ),
+            status="completed",
+        ),
+    )
+
+    response = client.get("/agent-runs/30")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "id": 30,
+        "ticket_id": 2,
+        "user_message": "Investigate ticket 2.",
+        "final_response": (
+            "Escalation proposed and awaiting approval."
+        ),
+        "status": "completed",
+    }
+
+
+# Verifies that requesting a missing agent run returns HTTP 404.
+def test_get_missing_agent_run_returns_404(monkeypatch):
+    monkeypatch.setattr(
+        main,
+        "get_agent_run",
+        lambda run_id: None,
+    )
+
+    response = client.get(
+        "/agent-runs/999999"
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {
+        "detail": "Agent run not found."
+    }
+
+
+# Verifies that all tool calls for an agent run can be retrieved.
+def test_get_agent_run_tool_calls_endpoint(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        main,
+        "get_agent_run",
+        lambda run_id: SimpleNamespace(
+            id=run_id,
+        ),
+    )
+
+    monkeypatch.setattr(
+        main,
+        "get_agent_run_tool_calls",
+        lambda run_id: [
+            SimpleNamespace(
+                id=20,
+                agent_run_id=run_id,
+                ticket_id=None,
+                tool_name="get_customer",
+                arguments={
+                    "customer_id": 3821,
+                },
+                result={
+                    "id": 3821,
+                    "name": "Bianca",
+                    "status": "active",
+                },
+                status="success",
+            ),
+            SimpleNamespace(
+                id=21,
+                agent_run_id=run_id,
+                ticket_id=None,
+                tool_name="get_transactions",
+                arguments={
+                    "customer_id": 3821,
+                },
+                result=[
+                    {
+                        "id": 1001,
+                        "customer_id": 3821,
+                        "status": "completed",
+                    }
+                ],
+                status="success",
+            ),
+        ],
+    )
+
+    response = client.get(
+        "/agent-runs/30/tool-calls"
+    )
+
+    assert response.status_code == 200
+    assert response.json() == [
+        {
+            "id": 20,
+            "agent_run_id": 30,
+            "ticket_id": None,
+            "tool_name": "get_customer",
+            "arguments": {
+                "customer_id": 3821,
+            },
+            "result": {
+                "id": 3821,
+                "name": "Bianca",
+                "status": "active",
+            },
+            "status": "success",
+        },
+        {
+            "id": 21,
+            "agent_run_id": 30,
+            "ticket_id": None,
+            "tool_name": "get_transactions",
+            "arguments": {
+                "customer_id": 3821,
+            },
+            "result": [
+                {
+                    "id": 1001,
+                    "customer_id": 3821,
+                    "status": "completed",
+                }
+            ],
+            "status": "success",
+        },
+    ]
+
+
+# Verifies that tool calls cannot be requested for a missing agent run.
+def test_get_missing_agent_run_tool_calls_returns_404(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        main,
+        "get_agent_run",
+        lambda run_id: None,
+    )
+
+    response = client.get(
+        "/agent-runs/999999/tool-calls"
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {
+        "detail": "Agent run not found."
+    }
+

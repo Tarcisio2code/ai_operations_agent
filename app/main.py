@@ -28,6 +28,8 @@ from app.tools.queries import (
     get_ticket,
     get_ticket_actions,
     get_ticket_tool_calls,
+    get_agent_run,
+    get_agent_run_tool_calls,
 )
 
 app = FastAPI(
@@ -242,6 +244,7 @@ def get_ticket_tool_calls_endpoint(ticket_id: int):
             arguments=tool_call.arguments,
             result=tool_call.result,
             status=tool_call.status,
+            agent_run_id=tool_call.agent_run_id,
         )
         for tool_call in tool_calls
     ]
@@ -263,3 +266,58 @@ def get_agent_runs_endpoint():
         )
         for run in runs
     ]
+
+@app.get(
+    "/agent-runs/{run_id}",
+    response_model=AgentRunResponse,
+)
+def get_agent_run_endpoint(run_id: int):
+    run = get_agent_run(run_id)
+
+    if run is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Agent run not found.",
+        )
+
+    return AgentRunResponse(
+        id=run.id,
+        ticket_id=run.ticket_id,
+        user_message=run.user_message,
+        final_response=run.final_response,
+        status=run.status,
+    )
+
+@app.get(
+    "/agent-runs/{run_id}/tool-calls",
+    response_model=list[AgentToolCallResponse],
+)
+def get_agent_run_tool_calls_endpoint(
+    run_id: int,
+):
+    run = get_agent_run(run_id)
+
+    if run is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Agent run not found.",
+        )
+
+    tool_calls = get_agent_run_tool_calls(
+        run_id
+    )
+
+    return [
+        AgentToolCallResponse(
+            id=tool_call.id,
+            agent_run_id=tool_call.agent_run_id,
+            ticket_id=tool_call.ticket_id,
+            tool_name=tool_call.tool_name,
+            arguments=tool_call.arguments,
+            result=tool_call.result,
+            status=tool_call.status,
+        )
+        for tool_call in tool_calls
+    ]
+
+

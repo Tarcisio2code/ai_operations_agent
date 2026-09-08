@@ -47,3 +47,26 @@ def get_agent_runs() -> list[AgentRun]:
                 )
             ).all()
         )
+
+def get_agent_run_tool_calls(
+    agent_run_id: int,
+) -> list[AgentToolCall]:
+    with SessionLocal() as session:
+        return list(
+            session.scalars(
+                select(AgentToolCall).where(
+                    AgentToolCall.agent_run_id
+                    == agent_run_id
+                )
+            ).all()
+        )
+
+def get_agent_run(
+    run_id: int,
+) -> AgentRun | None:
+    with SessionLocal() as session:
+        return session.scalar(
+            select(AgentRun).where(
+                AgentRun.id == run_id
+            )
+        )
