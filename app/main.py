@@ -32,6 +32,12 @@ from app.tools.queries import (
     get_agent_run_tool_calls,
 )
 
+from app.tools.tickets import (
+    classify_ticket_record,
+    create_ticket_record,
+    mark_ticket_classification_failed,
+)
+
 app = FastAPI(
 	title="AI Operation Agent",
 	description="LLM-powered operations workflow agent.",
@@ -48,21 +54,49 @@ async def health_check():
     status_code=201,
 )
 def create_ticket(ticket: TicketCreate):
-    classification = classify_ticket(ticket.message)
-
-    db_ticket = Ticket(
-        message=ticket.message,
-        status="classified",
-        category=classification.category.value,
-        priority=classification.priority.value,
-        customer_id=classification.customer_id,
-        summary=classification.summary,
+    db_ticket = create_ticket_record(
+        ticket.message
     )
 
-    with SessionLocal() as session:
-        session.add(db_ticket)
-        session.commit()
-        session.refresh(db_ticket)
+    try:
+        classification = classify_ticket(
+            ticket.message
+        )
+    except Exception:
+        mark_ticket_classification_failed(
+            db_ticket.id
+        )
+
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Ticket was created, but AI "
+                "classification is temporarily unavailable."
+            ),
+        )
+
+    try:
+        db_ticket = classify_ticket_record(
+            db_ticket.id,
+            classification,
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Ticket was created, but its "
+                "classification could not be saved."
+            ),
+        )
+
+    if db_ticket is None:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Ticket was created, but its "
+                "classification could not be saved."
+            ),
+        )
 
     return TicketResponse(
         id=db_ticket.id,

@@ -345,8 +345,8 @@ def test_get_agent_runs_endpoint(monkeypatch):
         }
     ]
 
-#
-# Verifies that a single agent run can be retrieved through the API.
+# Test 13
+## Verifies that a single agent run can be retrieved through the API.
 def test_get_agent_run_endpoint(monkeypatch):
     monkeypatch.setattr(
         main,
@@ -375,8 +375,8 @@ def test_get_agent_run_endpoint(monkeypatch):
         "status": "completed",
     }
 
-
-# Verifies that requesting a missing agent run returns HTTP 404.
+# Test 14
+## Verifies that requesting a missing agent run returns HTTP 404.
 def test_get_missing_agent_run_returns_404(monkeypatch):
     monkeypatch.setattr(
         main,
@@ -393,8 +393,8 @@ def test_get_missing_agent_run_returns_404(monkeypatch):
         "detail": "Agent run not found."
     }
 
-
-# Verifies that all tool calls for an agent run can be retrieved.
+# Test 15
+## Verifies that all tool calls for an agent run can be retrieved.
 def test_get_agent_run_tool_calls_endpoint(
     monkeypatch,
 ):
@@ -485,8 +485,8 @@ def test_get_agent_run_tool_calls_endpoint(
         },
     ]
 
-
-# Verifies that tool calls cannot be requested for a missing agent run.
+# Test 16
+## Verifies that tool calls cannot be requested for a missing agent run.
 def test_get_missing_agent_run_tool_calls_returns_404(
     monkeypatch,
 ):
@@ -505,3 +505,203 @@ def test_get_missing_agent_run_tool_calls_returns_404(
         "detail": "Agent run not found."
     }
 
+# Test 17
+## Verifies that a ticket is persisted before AI classification.
+def test_create_ticket_persists_before_classification(
+    monkeypatch,
+):
+    call_order = []
+
+    created_ticket = SimpleNamespace(
+        id=50,
+        message="Customer 3821 did not receive a reward.",
+        status="new",
+    )
+
+    classified_ticket = SimpleNamespace(
+        id=50,
+        message="Customer 3821 did not receive a reward.",
+        status="classified",
+        category="missing_reward",
+        priority="high",
+        customer_id=3821,
+        summary="Customer did not receive a reward.",
+    )
+
+    classification = SimpleNamespace(
+        category="missing_reward",
+        priority="high",
+        customer_id=3821,
+        summary="Customer did not receive a reward.",
+    )
+
+    def create_record(message):
+        call_order.append("persist")
+        return created_ticket
+
+    def classify(message):
+        call_order.append("classify")
+        return classification
+
+    def save_classification(
+        ticket_id,
+        result,
+    ):
+        call_order.append("save_classification")
+        return classified_ticket
+
+    monkeypatch.setattr(
+        main,
+        "create_ticket_record",
+        create_record,
+    )
+
+    monkeypatch.setattr(
+        main,
+        "classify_ticket",
+        classify,
+    )
+
+    monkeypatch.setattr(
+        main,
+        "classify_ticket_record",
+        save_classification,
+    )
+
+    response = client.post(
+        "/tickets",
+        json={
+            "message": (
+                "Customer 3821 did not receive a reward."
+            )
+        },
+    )
+
+    assert response.status_code == 201
+    assert response.json()["id"] == 50
+    assert response.json()["status"] == "classified"
+
+    assert call_order == [
+        "persist",
+        "classify",
+        "save_classification",
+    ]
+
+
+# Test 18
+## Verifies that a ticket is retained when AI classification fails.
+def test_create_ticket_retained_when_classification_fails(
+    monkeypatch,
+):
+    created_ticket = SimpleNamespace(
+        id=51,
+        message="Customer 3821 did not receive a reward.",
+        status="new",
+    )
+
+    failed_ticket_ids = []
+
+    monkeypatch.setattr(
+        main,
+        "create_ticket_record",
+        lambda message: created_ticket,
+    )
+
+    def fail_classification(message):
+        raise RuntimeError("AI provider unavailable")
+
+    monkeypatch.setattr(
+        main,
+        "classify_ticket",
+        fail_classification,
+    )
+
+    monkeypatch.setattr(
+        main,
+        "mark_ticket_classification_failed",
+        lambda ticket_id: failed_ticket_ids.append(
+            ticket_id
+        ),
+    )
+
+    response = client.post(
+        "/tickets",
+        json={
+            "message": (
+                "Customer 3821 did not receive a reward."
+            )
+        },
+    )
+
+    assert response.status_code == 503
+
+    assert response.json() == {
+        "detail": (
+            "Ticket was created, but AI "
+            "classification is temporarily unavailable."
+        )
+    }
+
+    assert failed_ticket_ids == [51]
+
+# Test 19
+## Verifies that a ticket remains persisted when saving the successful AI classification fails.
+def test_create_ticket_returns_500_when_classification_save_fails(
+    monkeypatch,
+):
+    created_ticket = SimpleNamespace(
+        id=52,
+        message="Customer 3821 did not receive a reward.",
+        status="new",
+    )
+
+    classification = SimpleNamespace(
+        category="missing_reward",
+        priority="high",
+        customer_id=3821,
+        summary="Customer did not receive a reward.",
+    )
+
+    monkeypatch.setattr(
+        main,
+        "create_ticket_record",
+        lambda message: created_ticket,
+    )
+
+    monkeypatch.setattr(
+        main,
+        "classify_ticket",
+        lambda message: classification,
+    )
+
+    def fail_classification_save(
+        ticket_id,
+        result,
+    ):
+        raise RuntimeError(
+            "Database update failed"
+        )
+
+    monkeypatch.setattr(
+        main,
+        "classify_ticket_record",
+        fail_classification_save,
+    )
+
+    response = client.post(
+        "/tickets",
+        json={
+            "message": (
+                "Customer 3821 did not receive a reward."
+            )
+        },
+    )
+
+    assert response.status_code == 500
+
+    assert response.json() == {
+        "detail": (
+            "Ticket was created, but its "
+            "classification could not be saved."
+        )
+    }
