@@ -63,3 +63,39 @@ class ActionProposalResponse(BaseModel):
     action_type: str
     reason: str | None = None
     status: str
+
+class TicketDetailResponse(BaseModel):
+    id: int
+    message: str
+    status: str
+    category: TicketCategory | None = None
+    priority: TicketPriority | None = None
+    customer_id: int | None = None
+    summary: str | None = None
+    escalation_reason: str | None = None
+
+
+class ActionDetailResponse(BaseModel):
+    id: int
+    ticket_id: int
+    action_type: str
+    reason: str
+    status: str
+
+
+class AgentToolCallResponse(BaseModel):
+    id: int
+    ticket_id: int | None = None
+    tool_name: str
+    arguments: dict
+    result: dict | list | str | None = None
+    status: str
+
+
+class AgentRunResponse(BaseModel):
+    id: int
+    ticket_id: int | None = None
+    user_message: str
+    final_response: str | None = None
+    status: str
+

@@ -76,3 +76,36 @@ def approve_action(action_id: int) -> dict | None:
             "reason": action.reason,
             "status": action.status,
         }
+
+def reject_action(action_id: int) -> dict | None:
+    with SessionLocal() as session:
+        action = session.scalar(
+            select(ProposedAction).where(
+                ProposedAction.id == action_id
+            )
+        )
+
+        if action is None:
+            return None
+
+        if action.status != "pending":
+            return {
+                "id": action.id,
+                "ticket_id": action.ticket_id,
+                "action_type": action.action_type,
+                "reason": action.reason,
+                "status": action.status,
+            }
+
+        action.status = "rejected"
+
+        session.commit()
+        session.refresh(action)
+
+        return {
+            "id": action.id,
+            "ticket_id": action.ticket_id,
+            "action_type": action.action_type,
+            "reason": action.reason,
+            "status": action.status,
+        }

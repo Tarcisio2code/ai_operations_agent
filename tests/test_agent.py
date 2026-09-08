@@ -1,6 +1,35 @@
 from types import SimpleNamespace
 
+import pytest
+
 from app.agent import operations
+
+# Replaces agent logging functions in every test, keeping tests isolated from the real database.
+@pytest.fixture(autouse=True)
+def mock_agent_logging(monkeypatch):
+    monkeypatch.setattr(
+        operations,
+        "log_tool_call",
+        lambda **kwargs: None,
+    )
+
+    monkeypatch.setattr(
+        operations,
+        "create_agent_run",
+        lambda **kwargs: 1,
+    )
+
+    monkeypatch.setattr(
+        operations,
+        "complete_agent_run",
+        lambda **kwargs: None,
+    )
+
+    monkeypatch.setattr(
+        operations,
+        "fail_agent_run",
+        lambda **kwargs: None,
+    )
 
 # Test 1
 ## Tests a basic agent flow with a single read-only tool call.
@@ -407,4 +436,54 @@ def test_agent_stops_after_max_steps(monkeypatch):
     )
 
     assert counter["value"] == 4
-    
+
+# Test 8
+## Tests that rejected actions are not exposed to the agent.
+def test_agent_cannot_reject_actions():
+    assert "reject_action" not in operations.TOOL_REGISTRY
+
+    available_tool_names = {
+        tool["name"]
+        for tool in operations.AGENT_TOOLS
+    }
+
+    assert "reject_action" not in available_tool_names
+
+# Test 9
+## Tests that a failed AI request marks the agent run as failed.
+def test_agent_marks_run_failed_when_ai_request_fails(
+    monkeypatch,
+):
+    failed_runs = []
+
+    def fake_create(*args, **kwargs):
+        raise RuntimeError("Gemini unavailable")
+
+    monkeypatch.setattr(
+        operations.client.interactions,
+        "create",
+        fake_create,
+    )
+
+    monkeypatch.setattr(
+        operations,
+        "fail_agent_run",
+        lambda **kwargs: failed_runs.append(kwargs),
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match="Gemini unavailable",
+    ):
+        operations.run_agent(
+            "Investigate this issue."
+        )
+
+    assert failed_runs == [
+        {
+            "run_id": 1,
+            "final_response": (
+                "Agent execution failed."
+            ),
+        }
+    ]

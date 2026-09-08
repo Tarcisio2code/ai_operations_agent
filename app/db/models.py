@@ -5,6 +5,8 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.database import Base
 
+from sqlalchemy import JSON
+
 
 class Ticket(Base):
     __tablename__ = "tickets"
@@ -129,6 +131,76 @@ class ProposedAction(Base):
     status: Mapped[str] = mapped_column(
         String(50),
         default="pending",
+        nullable=False,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+    )
+
+class AgentToolCall(Base):
+    __tablename__ = "agent_tool_calls"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    
+    agent_run_id: Mapped[int | None] = mapped_column(
+        ForeignKey("agent_runs.id"),
+        nullable=True,
+    )
+
+    ticket_id: Mapped[int | None] = mapped_column(
+        ForeignKey("tickets.id"),
+        nullable=True,
+    )
+
+    tool_name: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+    )
+
+    arguments: Mapped[dict] = mapped_column(
+        JSON,
+        nullable=False,
+    )
+
+    result: Mapped[dict | list | str | None] = mapped_column(
+        JSON,
+        nullable=True,
+    )
+
+    status: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+    )
+
+class AgentRun(Base):
+    __tablename__ = "agent_runs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+
+    ticket_id: Mapped[int | None] = mapped_column(
+        ForeignKey("tickets.id"),
+        nullable=True,
+    )
+
+    user_message: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+    )
+
+    final_response: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    status: Mapped[str] = mapped_column(
+        String(50),
         nullable=False,
     )
 

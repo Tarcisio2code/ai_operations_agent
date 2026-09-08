@@ -1,7 +1,13 @@
 from app.db.database import Base, engine
-from app.db.models import Customer, Ticket, Transaction, ProposedAction
-
-
+from app.db.models import ( 
+    Customer, 
+    Ticket, 
+    Transaction, 
+    ProposedAction, 
+    AgentToolCall, 
+    AgentRun,
+    AgentToolCall,
+)
 
 def init_db() -> None:
     Base.metadata.create_all(bind=engine)
