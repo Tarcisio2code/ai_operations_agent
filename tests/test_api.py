@@ -2,6 +2,7 @@ from fastapi.testclient import TestClient
 
 from app import main
 
+from types import SimpleNamespace
 
 client = TestClient(main.app)
 
@@ -174,3 +175,170 @@ def test_reject_missing_action_returns_404(
     )
 
     assert response.status_code == 404
+
+# Test 8
+## Verifies that a ticket can be retrieved through the API.
+def test_get_ticket_endpoint(monkeypatch):
+    fake_ticket = SimpleNamespace(
+        id=1,
+        message="Customer did not receive the reward.",
+        status="classified",
+        category="missing_reward",
+        priority="high",
+        customer_id=3821,
+        summary="Reward was not received.",
+        escalation_reason=None,
+    )
+
+    monkeypatch.setattr(
+        main,
+        "get_ticket",
+        lambda ticket_id: fake_ticket,
+    )
+
+    response = client.get("/tickets/1")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "id": 1,
+        "message": "Customer did not receive the reward.",
+        "status": "classified",
+        "category": "missing_reward",
+        "priority": "high",
+        "customer_id": 3821,
+        "summary": "Reward was not received.",
+        "escalation_reason": None,
+    }
+
+# Test 9
+## Verifies that requesting a missing ticket returns HTTP 404.
+def test_get_missing_ticket_returns_404(monkeypatch):
+    monkeypatch.setattr(
+        main,
+        "get_ticket",
+        lambda ticket_id: None,
+    )
+
+    response = client.get("/tickets/999999")
+
+    assert response.status_code == 404
+
+# Test 10
+## Verifies that proposed actions for a ticket are exposed through the API.
+def test_get_ticket_actions_endpoint(monkeypatch):
+    monkeypatch.setattr(
+        main,
+        "get_ticket",
+        lambda ticket_id: SimpleNamespace(id=ticket_id),
+    )
+
+    monkeypatch.setattr(
+        main,
+        "get_ticket_actions",
+        lambda ticket_id: [
+            SimpleNamespace(
+                id=10,
+                ticket_id=ticket_id,
+                action_type="escalate_case",
+                reason="Manual review required.",
+                status="pending",
+            )
+        ],
+    )
+
+    response = client.get("/tickets/2/actions")
+
+    assert response.status_code == 200
+    assert response.json() == [
+        {
+            "id": 10,
+            "ticket_id": 2,
+            "action_type": "escalate_case",
+            "reason": "Manual review required.",
+            "status": "pending",
+        }
+    ]
+
+# Test 11
+## Verifies that tool calls associated with a ticket are exposed through the API.
+def test_get_ticket_tool_calls_endpoint(monkeypatch):
+    monkeypatch.setattr(
+        main,
+        "get_ticket",
+        lambda ticket_id: SimpleNamespace(id=ticket_id),
+    )
+
+    monkeypatch.setattr(
+        main,
+        "get_ticket_tool_calls",
+        lambda ticket_id: [
+            SimpleNamespace(
+                id=20,
+                ticket_id=ticket_id,
+                tool_name="propose_escalation",
+                arguments={
+                    "ticket_id": ticket_id,
+                    "reason": "Manual review required.",
+                },
+                result={
+                    "status": "pending",
+                },
+                status="success",
+            )
+        ],
+    )
+
+    response = client.get(
+        "/tickets/2/tool-calls"
+    )
+
+    assert response.status_code == 200
+    assert response.json() == [
+        {
+            "id": 20,
+            "ticket_id": 2,
+            "tool_name": "propose_escalation",
+            "arguments": {
+                "ticket_id": 2,
+                "reason": "Manual review required.",
+            },
+            "result": {
+                "status": "pending",
+            },
+            "status": "success",
+        }
+    ]
+
+# Test 12
+## Verifies that agent execution history can be retrieved through the API.
+def test_get_agent_runs_endpoint(monkeypatch):
+    monkeypatch.setattr(
+        main,
+        "get_agent_runs",
+        lambda: [
+            SimpleNamespace(
+                id=30,
+                ticket_id=2,
+                user_message="Investigate ticket 2.",
+                final_response=(
+                    "Escalation proposed and awaiting approval."
+                ),
+                status="completed",
+            )
+        ],
+    )
+
+    response = client.get("/agent-runs")
+
+    assert response.status_code == 200
+    assert response.json() == [
+        {
+            "id": 30,
+            "ticket_id": 2,
+            "user_message": "Investigate ticket 2.",
+            "final_response": (
+                "Escalation proposed and awaiting approval."
+            ),
+            "status": "completed",
+        }
+    ]
